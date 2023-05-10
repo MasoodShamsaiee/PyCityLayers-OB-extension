@@ -6,3 +6,5 @@ Time-Use Survey Integration/TUS_analysis.py
 >>>>>>> 68a798f240ea10d3cb5289ea031bb01bffa6ada2
 Time-Use Survey Integration/TUS_EP.pickle
 Time-Use Survey Integration/TUS_MA.pickle
+__pycache__/
+
