@@ -7,6 +7,7 @@ import numpy as np
 import geopandas as gpd
 import contextily as cx
 from shapely.geometry import Polygon, Point, MultiPolygon
+from tqdm import tqdm
 
 
 
@@ -76,19 +77,24 @@ def building_footprint_extract(x=-73.57055894277187,y=45.530384608361125,r=0.03)
 def tract_assign(Buildings_list,x=-73.57055894277187,y=45.530384608361125,r=0.03):
     
     data_tracts=tract_extract(x,y,r)
-    tracts_assigned_dict=dict([])
+    tracts_assigned_dict=[]
+    
     for i, CTname in enumerate(data_tracts["CTNAME"]):
+        
         polya=Polygon(data_tracts[data_tracts.loc[:,"CTNAME"]==CTname]["geom"][i]["coordinates"][0][0])
-        for j in Buildings_list.index:
-            polyb=Polygon(Buildings_list.iloc[j,:]["geom"]["coordinates"][0])
+        print(f"check for tract{CTname} which is {i+1} / {len(data_tracts)}")
+        for j in tqdm(Buildings_list.index, disable=True):
+            if "MULTIPOLYGON" in str(Buildings_list[Buildings_list.index==j]["geometry"]):
+                continue
+            polyb=Polygon(Buildings_list.iloc[j,:]["geometry"])
             if polya.contains(polyb):
-                tracts_assigned_dict[j]=CTname
+                tracts_assigned_dict.append({'Index':j,'ID_UEV':str(Buildings_list.iloc[j,:]["ID_UEV"]),'Tract':CTname})
 
     new_df=Buildings_list.copy()
-    new_df["Tract"]=np.nan
-    for j in tracts_assigned_dict:
-        new_df["Tract"][j]=tracts_assigned_dict[j]
-    return new_df
+    tracts_assigned_df=pd.DataFrame(tracts_assigned_dict)
+    new_df=pd.merge(new_df,tracts_assigned_df,on="ID_UEV")
+
+    return new_df,tracts_assigned_df
 
 def buildings_in_tracts(x=-73.57055894277187,y=45.530384608361125,r=0.03):
     buildings=building_extract(x,y,r)
@@ -101,6 +107,27 @@ def buildings_in_tracts(x=-73.57055894277187,y=45.530384608361125,r=0.03):
 
 
 ### --- PLOTTING FUNCTIONS --- ###
+def plot_it(buildings_list,column=None,legend=False,basemap=True,multipolygon=False,alpha=1,labeled=False):
+    if type(buildings_list)!=gpd.geodataframe.GeoDataFrame:
+        dataset=geodataframe_of(buildings_list,multipolygon)
+    else:
+        dataset=buildings_list
+
+    dataset=dataset.to_crs('EPSG:32198')
+    
+    if multipolygon:
+        ax=dataset.plot(column=column,legend=legend, edgecolor="black", alpha=alpha,figsize=(15, 15))
+    else:
+        ax=dataset.plot(column=column,legend=legend,alpha=alpha,figsize=(15, 15))
+    if basemap:
+        cx.add_basemap(ax, crs=dataset.crs.to_string(),source=cx.providers.OpenStreetMap.Mapnik)
+    if column!=None:
+        if labeled:
+            for x, y, label in zip(dataset.geometry.centroid.x, dataset.geometry.centroid.y, dataset[str(column)]):
+                ax.annotate(label, xy=(x, y), xytext=(0, 0), textcoords="offset points", ha='center', fontsize=6)
+    ax.set_axis_off()
+    return
+
 def geometry_generator(bldgs,multipolygon=False):
     polygon_list=[]
     for i in range(len(bldgs)):
@@ -112,16 +139,15 @@ def geometry_generator(bldgs,multipolygon=False):
         polygon_list.append(polygon1)
     return polygon_list
 
-def plot_it(buildings_list,column=None,legend=False,basemap=True,multipolygon=False,alpha=1):
-    if type(buildings_list)!=gpd.geodataframe.GeoDataFrame:
-        dataset=gpd.GeoDataFrame(buildings_list)
-        dataset=dataset.set_geometry(geometry_generator(buildings_list,multipolygon=multipolygon))
-        dataset=dataset.set_crs(epsg=4326)
-    if multipolygon:
-        ax=dataset.plot(column=column,legend=legend, edgecolor="black", alpha=alpha)
+def geodataframe_of(buildings_list,multipolygon=False,crs='EPSG:32198'):
+    if 'geom' in buildings_list.columns:
+        print("there is 'geom' in columns")
+        buildings_list_gdf=gpd.GeoDataFrame(buildings_list,geometry=geometry_generator(buildings_list,multipolygon=multipolygon),crs='epsg:4326').to_crs(crs)
+    elif 'geometry' in buildings_list.columns:
+        print('there is "geometry" in columns')
+        buildings_list_gdf=gpd.GeoDataFrame(buildings_list,geometry=buildings_list.geometry,crs='epsg:4326').to_crs(crs)
     else:
-        ax=dataset.plot(column=column,legend=legend,alpha=alpha)
-    if basemap:
-        cx.add_basemap(ax, crs=dataset.crs.to_string(),source=cx.providers.OpenStreetMap.Mapnik)
-    
-    return
+        print('no geometry detected')
+        buildings_list_gdf=[]
+    return buildings_list_gdf
+
