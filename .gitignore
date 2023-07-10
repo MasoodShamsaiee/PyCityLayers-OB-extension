@@ -8,3 +8,8 @@ Masood_data2_FeaturesToJSON.geojson
 playground.ipynb
 playground.py
 playground.ipynb
+data_PCL_bldg.csv
+data_PCL_bldg.parquet
+HQ_dataset.parquet
+HQ_dataset.pkl
+Census Integration/Montreal Tracts.csv
