@@ -91,10 +91,16 @@ def tract_assign(Buildings_list,x=-73.57055894277187,y=45.530384608361125,r=0.03
                 tracts_assigned_dict.append({'Index':j,'ID_UEV':str(Buildings_list.iloc[j,:]["ID_UEV"]),'Tract':CTname})
 
     new_df=Buildings_list.copy()
-    tracts_assigned_df=pd.DataFrame(tracts_assigned_dict)
-    new_df=pd.merge(new_df,tracts_assigned_df,on="ID_UEV")
+    if len(tracts_assigned_dict)>0:
 
-    return new_df,tracts_assigned_df
+        tracts_assigned_df=pd.DataFrame(tracts_assigned_dict)
+    
+        new_df=pd.merge(new_df,tracts_assigned_df,on="ID_UEV")
+        return new_df,tracts_assigned_df
+    else:
+        print('No tracts assigned. Input = Output')
+        return new_df
+    
 
 def buildings_in_tracts(x=-73.57055894277187,y=45.530384608361125,r=0.03):
     buildings=building_extract(x,y,r)
@@ -107,18 +113,25 @@ def buildings_in_tracts(x=-73.57055894277187,y=45.530384608361125,r=0.03):
 
 
 ### --- PLOTTING FUNCTIONS --- ###
-def plot_it(buildings_list,column=None,legend=False,basemap=True,multipolygon=False,alpha=1,labeled=False):
+def plot_it(buildings_list,column=None,legend=False,basemap=True,multipolygon=False,alpha=1,labeled=False,edgecolor='black'):
     if type(buildings_list)!=gpd.geodataframe.GeoDataFrame:
         dataset=geodataframe_of(buildings_list,multipolygon)
     else:
         dataset=buildings_list
 
     dataset=dataset.to_crs('EPSG:32198')
-    
+    # Get the number of unique geometries in the GeoDataFrame
+    num_geometries = len(dataset.geometry.unique())
+
+    # Set the number of colors you want in the color cycle
+    num_colors = max(10, num_geometries)  # Choose a minimum of 10 colors or the number of geometries, whichever is larger
+
+    # Set the color cycle to a set of distinct colors
+    plt.rcParams['axes.prop_cycle'] = plt.cycler(color=plt.cm.tab20.colors[:num_colors])
     if multipolygon:
-        ax=dataset.plot(column=column,legend=legend, edgecolor="black", alpha=alpha,figsize=(15, 15))
+        ax=dataset.plot(column=column,legend=legend, edgecolor=edgecolor, alpha=alpha,figsize=(15, 15))
     else:
-        ax=dataset.plot(column=column,legend=legend,alpha=alpha,figsize=(15, 15))
+        ax=dataset.plot(column=column,legend=legend,alpha=alpha,figsize=(15, 15),edgecolor=edgecolor)
     if basemap:
         cx.add_basemap(ax, crs=dataset.crs.to_string(),source=cx.providers.OpenStreetMap.Mapnik)
     if column!=None:

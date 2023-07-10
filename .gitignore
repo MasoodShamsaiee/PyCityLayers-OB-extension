@@ -8,8 +8,14 @@ Masood_data2_FeaturesToJSON.geojson
 playground.ipynb
 playground.py
 playground.ipynb
+<<<<<<< HEAD
 data_PCL_bldg.csv
 data_PCL_bldg.parquet
 HQ_dataset.parquet
 HQ_dataset.pkl
 Census Integration/Montreal Tracts.csv
+=======
+Postal code geometry/
+pycitylayers/
+HQ.parquet
+>>>>>>> fa8b95e12552714d4699e1298538653e8e441388
